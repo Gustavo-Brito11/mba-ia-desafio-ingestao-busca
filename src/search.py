@@ -44,6 +44,12 @@ def search_prompt(question=None):
       
     embeddings = GoogleGenerativeAIEmbeddings(model=GOOGLE_EMBEDDING_MODEL)
     
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+    
     store = PGVector(
         embeddings=embeddings,
         collection_name=PG_VECTOR_COLLECTION_NAME,
@@ -53,8 +59,10 @@ def search_prompt(question=None):
     
     results = store.similarity_search_with_score(question, k=10)
 
-    contexto = "\n".join([f"Fonte: {doc.metadata.get('source', 'Desconhecida')}\nTrecho: {doc.page_content}" for doc in results])
-    
-    prompt = PromptTemplate.from_template(PROMPT_TEMPLATE.format(contexto=contexto, pergunta=question))
+    contexto = "\n".join([
+        f"Fonte: {doc.metadata.get('source', 'Desconhecida')}\n"
+        f"Trecho: {doc.page_content}"
+        for doc, score in results
+    ])
 
-    return prompt
+    return contexto
