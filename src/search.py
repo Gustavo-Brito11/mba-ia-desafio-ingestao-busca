@@ -1,3 +1,18 @@
+import os
+from dotenv import load_dotenv
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_core.documents import Document
+from langchain_postgres import PGVector
+from langchain_core.prompts import PromptTemplate
+
+load_dotenv()
+
+GOOGLE_EMBEDDING_MODEL = os.getenv("GOOGLE_EMBEDDING_MODEL")
+PG_VECTOR_COLLECTION_NAME = os.getenv("PG_VECTOR_COLLECTION_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 PROMPT_TEMPLATE = """
 CONTEXTO:
 {contexto}
@@ -26,4 +41,23 @@ RESPONDA A "PERGUNTA DO USUÁRIO"
 """
 
 def search_prompt(question=None):
-    pass
+  
+    if not question:
+        return None
+      
+    embeddings = GoogleGenerativeAIEmbeddings(model=GOOGLE_EMBEDDING_MODEL)
+    
+    store = PGVector(
+        embeddings=embeddings,
+        collection_name=PG_VECTOR_COLLECTION_NAME,
+        connection=DATABASE_URL,
+        use_jsonb=True
+    )
+    
+    results = store.similarity_search_with_score(question, k=10)
+
+    contexto = "\n".join([f"Fonte: {doc.metadata.get('source', 'Desconhecida')}\nTrecho: {doc.page_content}" for doc in results])
+    
+    prompt = PromptTemplate.from_template(PROMPT_TEMPLATE.format(contexto=contexto, pergunta=question))
+
+    return prompt
