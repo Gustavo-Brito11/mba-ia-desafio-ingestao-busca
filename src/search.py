@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_postgres import PGVector
-from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
 
@@ -52,9 +51,13 @@ def search_prompt(question=None):
     )
     
     results = store.similarity_search_with_score(question, k=10)
-
-    contexto = "\n".join([f"Fonte: {doc.metadata.get('source', 'Desconhecida')}\nTrecho: {doc.page_content}" for doc in results])
     
-    prompt = PromptTemplate.from_template(PROMPT_TEMPLATE.format(contexto=contexto, pergunta=question))
+    contexto = "\n".join([
+        f"Fonte: {doc.metadata.get('source', 'Desconhecida')}\n"
+        f"Trecho: {doc.page_content}"
+        for doc, score in results
+    ])
 
-    return prompt
+    return contexto
+
+
